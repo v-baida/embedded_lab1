@@ -25,7 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <math.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +50,8 @@
 uint8_t flashingMode = 0;
 uint8_t Receive_buff[Buff_Size];
 uint8_t UART_Message = 0;
+float blinking_frequency = 1.0f;
+float blinking_period = 500;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,7 +62,8 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+extern DMA_HandleTypeDef hdma_usart3_rx;
+extern UART_HandleTypeDef huart3;
 /* USER CODE END 0 */
 
 /**
@@ -102,29 +106,46 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
+		if (UART_Message)
+		{
+			uint8_t str_len = Buff_Size - __HAL_DMA_GET_COUNTER(&hdma_usart3_rx);
+			HAL_UART_Receive_DMA(&huart3, Receive_buff, Buff_Size - 1);
+			memset(Receive_buff+str_len-1, 0, Buff_Size-str_len);
+			UART_Message = 0;
+			if ((Receive_buff[0] == 'f' || Receive_buff[0] == 'F') && Receive_buff[1] == '=' && (Receive_buff[2] >= '0' || Receive_buff[2] <= '9')
+					&& Receive_buff[3] == '.' && (Receive_buff[4] >= '0' || Receive_buff[4] <= '9') && !(Receive_buff[2] == '0' && Receive_buff[4] == '0') && Receive_buff[5] == 0)
+			{
+				blinking_frequency = (Receive_buff[2]-0x30) + ((float)Receive_buff[4]-0x30) * 0.1;
+				blinking_period = 1 / blinking_frequency * 1000;
+			}
+			else
+			{
+				HAL_UART_Transmit(&huart3, (uint8_t*)"Wrong command", strlen("Wrong command"), 0xFFFFFFFF);
+			}
+		}
 		if (flashingMode)
 		{
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-			HAL_Delay(500);
+			HAL_Delay(blinking_period / 2);
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-			HAL_Delay(500);
+			HAL_Delay(blinking_period / 2);
 		}
 		else
 		{
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-			HAL_Delay(250);
+			HAL_Delay(blinking_period / 4);
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-			HAL_Delay(250);
+			HAL_Delay(blinking_period / 4);
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-			HAL_Delay(250);
+			HAL_Delay(blinking_period / 4);
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-			HAL_Delay(250);
+			HAL_Delay(blinking_period / 4);
 		}
 
     /* USER CODE END WHILE */
