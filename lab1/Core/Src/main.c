@@ -35,6 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define Buff_Size 256
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,6 +47,8 @@
 
 /* USER CODE BEGIN PV */
 uint8_t flashingMode = 0;
+uint8_t Receive_buff[Buff_Size];
+uint8_t UART_Message = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,7 +94,8 @@ int main(void)
   MX_USART3_UART_Init();
 
   /* USER CODE BEGIN 2 */
-
+	__HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);
+	HAL_UART_Receive_DMA(&huart3, Receive_buff, Buff_Size-1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -174,7 +178,20 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void UART_IRQHandler(UART_HandleTypeDef *huart)
+{
+		if(RESET != __HAL_UART_GET_FLAG(huart, UART_FLAG_IDLE))
+		{
+			__HAL_UART_CLEAR_IDLEFLAG(huart);
+			UART_IDLECallback(huart);
+		}
+}
 
+void UART_IDLECallback(UART_HandleTypeDef *huart)
+{
+	HAL_UART_DMAStop(huart);
+	UART_Message = 1;
+}
 /* USER CODE END 4 */
 
 /**
